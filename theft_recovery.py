@@ -72,7 +72,7 @@ def create_flow_line_theft_rec(df):
     return df_1, df_2, df_3
 
 
-def classify_distance(df):
+def classify_distance(df: GeoDataFrame):
     """
     1-d classification based on Natural Breaks
     :param df:
