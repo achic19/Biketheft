@@ -1,9 +1,14 @@
 import geopandas as gpd
+import pandas as pd
+from pandas import DataFrame
 from geopandas import GeoDataFrame
 import mapclassify as mc
 import numpy as np
+from shapely.geometry import Point, LineString
 
 SIGN = '_'
+CRS = 'epsg:4326'
+PRO_CRS = 'epsg:3857'
 
 
 def create_gis_file_of_pnts_theft(df, mode='theft', more_cols=None):
@@ -11,7 +16,7 @@ def create_gis_file_of_pnts_theft(df, mode='theft', more_cols=None):
     Convert the csv file (@df) to a gis file containing pertinent information and geometry
     :return:
     """
-    from shapely.geometry import Point, LineString
+
     if mode == 'theft':
         df.geometry = df.apply(lambda x: Point(float(x['lat']), float(x['lon'])), axis=1)
     else:
@@ -21,8 +26,8 @@ def create_gis_file_of_pnts_theft(df, mode='theft', more_cols=None):
         df.geometry = df.apply(
             lambda x: LineString([(float(x['lat']), float(x['lon'])), (float(x['lat_rec']), float(x['lon_rec']))]),
             axis=1)
-    df.crs = 'epsg:4326'
-    df = df.to_crs('epsg:3857')
+    df.crs = CRS
+    df = df.to_crs(PRO_CRS)
     if mode != 'theft':
         df['length'] = df.length
     # df = df[
@@ -94,13 +99,58 @@ def same_city(df: GeoDataFrame):
     return new_df[~new_df['stolen_bikes_place'].apply(lambda x: x.startswith(','))]
 
 
-def california_counties(counties: GeoDataFrame, thefts: GeoDataFrame, recoveries: GeoDataFrame):
-    def spatial_join_dissolve(to_join: GeoDataFrame):
-        join_left_df = counties_clean.sjoin(to_join, how='left')
-        join_left_agg = join_left_df.dissolve(by="NAME", aggfunc='count')
-        return join_left_agg[['stolen_bikes_place']]
+def spatial_join_dissolve(left_file: GeoDataFrame, to_join: GeoDataFrame, by: str):
+    join_left_df = left_file.sjoin(to_join, how='left').reset_index()
+    join_left_agg = join_left_df.dissolve(by=by, aggfunc='count')
+    join_left_df.groupby('cntry_name').count()
+    return join_left_agg[join_left_agg.columns[0]]
 
+
+def california_counties(counties: GeoDataFrame, thefts: GeoDataFrame, recoveries: GeoDataFrame):
     counties_clean = counties[['NAME', 'geometry']].set_index('NAME')
-    counties_clean['count_thefts'] = spatial_join_dissolve(to_join=thefts)
-    counties_clean['count_recovery'] = spatial_join_dissolve(to_join=recoveries)
+    counties_clean['count_thefts'] = spatial_join_dissolve(left_file=counties_clean, to_join=thefts, by="NAME")
+    counties_clean['count_recovery'] = spatial_join_dissolve(left_file=counties_clean, to_join=recoveries, by="NAME")
     return counties_clean
+
+
+def merge_two_dataset(new_source: DataFrame, df_bike_survey: DataFrame, location_col_new_source: str,
+                      index_col_new_source: str,
+                      name_new_source: str) -> GeoDataFrame:
+    """
+    It merges two different datasource about bike theft and return GeoDataFrame
+    :param new_source:
+    :param df_bike_survey:
+    :param location_col_new_source: the column name of the coordinates
+    :param index_col_new_source: the column name of the index
+     (help to restore the locations of records in the original dataset
+    :param name_new_source: the name of the new source dataset
+    :return:
+    """
+    index_survey = 'index'
+    df_bike_survey = df_bike_survey[['lat', 'lon', index_survey]]
+    df_bike_survey['source'] = 'survey'
+
+    print(SIGN + '{} len is: {} '.format(name_new_source, len(new_source)))
+    only_with_loc = new_source[new_source[location_col_new_source] != '']
+    print(SIGN + '{} len after removing records without location is: {} '.format(name_new_source, len(only_with_loc)))
+    with_rel_cols = only_with_loc[[location_col_new_source, index_col_new_source]]
+    with_rel_cols['source'] = name_new_source
+    with_rel_cols.rename(columns={index_col_new_source: index_survey}, inplace=True)
+
+    with_rel_cols[['lon', 'lat']] = with_rel_cols[location_col_new_source].str.split(',', expand=True)
+    after_merge = pd.concat([df_bike_survey, with_rel_cols]).drop(columns=[location_col_new_source])
+    print(SIGN + 'the number of records after merging is:{}'.format(len(after_merge)))
+    return GeoDataFrame(data=after_merge, crs=CRS,
+                        geometry=after_merge.apply(lambda x: Point(float(x['lat']), float(x['lon'])), axis=1)).to_crs(
+        PRO_CRS)
+
+
+def grouping_by(gdf: GeoDataFrame, scales_data: dict, data_folder: str) -> dict:
+    for spatial_scale in scales_data.values():
+        name_col = spatial_scale[1]
+        df_left = gpd.read_file(data_folder, layer=spatial_scale[0], driver="GPKG").set_index(name_col)
+        df_left = df_left[[df_left.columns[0], 'geometry']]
+        records_data = gdf[['index', 'geometry']]
+        df_left['count'] = spatial_join_dissolve(left_file=df_left, to_join=records_data, by=name_col)
+        spatial_scale.append(df_left)
+    return scales_data

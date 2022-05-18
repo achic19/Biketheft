@@ -93,7 +93,7 @@ def geo_coding(df: DataFrame, col_to_geo_code: str, new_cols: list, is_exist: st
 if __name__ == '__main__':
     gis = GIS()
     parameters = {'unzip_file': True, 'geo_coding_theft': False, 'geo_coding_recovery': False}
-    folder_to_un_zip = 'zip/Bicycle+Theft_May+16,+2022_11.29.zip'
+    folder_to_un_zip = 'data/zip/Bicycle+Theft_May+16,+2022_11.29.zip'
     my_new_location = 'data/process'
     is_the_first_time = False
 
