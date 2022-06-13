@@ -1,0 +1,23 @@
+# df = df[
+#     ['LocationLatitude', 'LocationLongitude', 'Q2', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8', 'Q9', 'Q10', 'Q11', 'Q12', 'Q13',
+#      'Q14', 'Q15',
+#      'Q16_1_TEXT', 'Q17', 'Q18', 'Q19', 'Q21', 'Q22_1_TEXT', 'Q23', 'Q23_15_TEXT', 'Q24', 'Q25', 'Q26', 'Q27', 'Q28_1',
+#      'Q28_2', 'Q28_3', 'Q28_4', 'Q29', 'Q30', 'Q31', 'Q34', 'Q35', 'Q36', 'Q37', 'Q38', 'Q39', 'Q39_10_TEXT',
+#      'score',
+#      'geometry']]
+# df.rename(columns={'LocationLatitude': 'response_loc_lat',
+#                    'LocationLongitude': 'response_loc_lon', 'Q2': 'stolen_part', 'Q4': "stolen_bikes_year",
+#                    'Q5': 'stolen_bikes_month',
+#                    'Q6': 'stolen_bikes_day_time', 'Q7': 'bicycle locked_status', 'Q8': 'locked_type',
+#                    'Q9': 'bike_parking', 'Q10': 'is_registered_recovered_sys', 'Q11': 'is_reported',
+#                    'Q12': 'is_insured', 'Q13': 'bike_price', 'Q14': 'is_electronic', 'Q15': 'bike_type',
+#                    "Q16_1_TEXT": "stolen_bikes_place", 'Q17': 'is_near_college', 'Q18': 'is_recovered',
+#                    'Q19': 'is_sold_online', 'Q21': 'is_police_assist', 'Q22_1_TEXT': "recovered_bikes_place",
+#                    'Q23': 'recovered_bikes_loc', 'Q23_15_TEXT': 'recovered_bikes_loc_more_data',
+#                    'Q24': 'bike_condition', 'Q25': 'is_bike_replaced', 'Q26': 'time_to_replace',
+#                    'Q27': 'days_recover_use', 'Q28_1': 'cycle_frequent_fall',
+#                    'Q28_2': 'cycle_frequent_winter', 'Q28_3': 'cycle_frequent_spring',
+#                    'Q28_4': 'cycle_frequent_summer', 'Q29': 'trip_type', 'Q30': 'substitute_mode_trns',
+#                    'Q31': 'behaviour', 'Q34': 'age', 'Q35': 'gender', 'Q36': 'income', 'Q37': 'num_of_bikes',
+#                    'Q38': 'education', 'Q39': 'ethnic_origin', 'Q39_10_TEXT': 'ethnic_origin_other'},
+#           inplace=True)
