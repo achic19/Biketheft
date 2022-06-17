@@ -27,11 +27,12 @@ def unzip_file(file_to_zip: str, new_location: str):
     zipdata.extract(zipinfos[0], path=new_location)
 
 
-def geo_coding(df: DataFrame, col_to_geo_code: list, new_cols: list, what_data_file: str = 'theft'):
+def geo_coding(df: DataFrame, col_to_geo_code: list, new_cols: list, what_data_file: str = 'theft',
+               only_us_canada: bool = False):
     """
     Geocoding the place appear in &col_to_geo_code
     :param what_data_file:
-    :param is_exist:
+    :param only_us_canada: this helps filter out results from other countries
     :param new_cols: The name of new columns to store the results
     :param col_to_geo_code:
     :param df:
@@ -108,7 +109,7 @@ def geo_coding(df: DataFrame, col_to_geo_code: list, new_cols: list, what_data_f
                     return compare_to_response_location()
 
         index = row.name
-        print("Progress {:2.1%}".format(generator_2.__next__() / df_len))
+        print("{:2.1%}".format(generator_2.__next__() / df_len), end=' ')
         if what_data_file == 'theft':
             esrihq = advanced()
         else:
@@ -130,13 +131,13 @@ def geo_coding(df: DataFrame, col_to_geo_code: list, new_cols: list, what_data_f
         score = esrihq['score']
         if what_data_file == 'theft':
             if not esrihq_country == 'USA' and not esrihq_country == 'CAN':
-                print('the row {} with a place {}  is not in US or Canada {}'.format(index, row[-1], esrihq))
+                print('\nthe row {} with a place {}  is not in US or Canada {}\n'.format(index, row[-1], esrihq))
             if score < 100:
-                print('the score of the row {} with place {} is {} ,{}'.format(index, row[-1], score, esrihq))
+                print('\nthe score of the row {} with place {} is {} ,{}\n'.format(index, row[-1], score, esrihq))
             # input("Continue?")
         else:
             if score < 70:
-                print('the score of the row {}  is {} '.format(index, score))
+                print('\nthe score of the row {}  is {}\n'.format(index, score))
 
         loc = esrihq['location']
         new_location = ','.join([esrihq_att['City'], esrihq_att['Region'], esrihq_country])
@@ -157,6 +158,11 @@ def geo_coding(df: DataFrame, col_to_geo_code: list, new_cols: list, what_data_f
     # Using this generator, we can track the progress of the process
     generator_2 = (x for x in range(df_len))
     df[new_cols] = df.apply(lambda x: make_geocoding(x[col_to_geo_code]), axis=1, result_type='expand')
+    if only_us_canada:
+        df['country'] = df['stolen_bikes_place'].apply(lambda x: x.split(',')[2])
+        df = df[df['country'].isin(('CAN', 'USA'))]
+        print("the number of results from CA and USA is:{}".format(len(df)))
+        print(df.groupby('country').count()['index'])
     return df[df['score'].notna()]
 
 
@@ -178,12 +184,12 @@ if __name__ == '__main__':
         my_df = pd.read_csv(join(my_new_location, 'new_data.csv'), skiprows=[1, 2]).reset_index()
         res_file_name = my_new_location + '/res_with_geo_loc.csv'
         res = geo_coding(my_df, ['LocationLongitude', 'LocationLatitude', "Q16_1_TEXT"],
-                         ['lat', 'lon', 'score', 'stolen_bikes_place'])
+                         ['lat', 'lon', 'score', 'stolen_bikes_place'], only_us_canada=True)
         res.to_csv(res_file_name)
 
     if parameters['geo_coding_recovery']:
         print('geo_coding_recovery')
-        my_df = pd.read_csv(my_new_location + '/res_with_geo_loc.csv')
+        my_df = pd.read_csv(my_new_location + '/res_with_geo_loc.csv').set_index('index')
         res = geo_coding(my_df, ['LocationLongitude', 'LocationLatitude', 'Q22_1_TEXT'],
                          ['lat_rec', 'lon_rec', 'score_rec', "recover_bikes_place"])
         res.to_csv(my_new_location + '/res_with_geo_loc_rec.csv')

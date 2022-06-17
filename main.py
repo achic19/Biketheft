@@ -3,13 +3,13 @@ import geopandas as gpd
 from python.theft_recovery import *
 
 if __name__ == '__main__':
-    parameters = {'BikeTheft': False, 'BikeIndex': False, 'FindPatterns': True}
+    parameters = {'BikeTheft': True, 'BikeIndex': False, 'FindPatterns': False}
     if parameters['BikeTheft']:
-        locals_parameters = {'create_gis_file_of_pnts_theft': False, 'create_flow_line_theft_rec': False,
-                             'classify_distance': False, 'same_city': False,
+        locals_parameters = {'create_gis_file_of_pnts_theft': False, 'create_flow_line_theft_rec': True,
+                             'classify_distance': False, 'same_city': True,
                              'california_counties': False}
         print('BikeTheft')
-        theft_recovery = BikeTheft(data_survey='data/res_with_geo_loc.csv',
+        theft_recovery = BikeTheft(data_survey=r'data/process/res_with_geo_loc.csv',
                                    data_folder=r"general\Biketheft_esri\data.gpkg",
                                    scale_units={
                                        'states': ['us_canada_provinces', 'NAME'],
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
         if locals_parameters['create_flow_line_theft_rec']:
             print('create_flow_line_theft_rec')
-            theft_recovery.create_flow_line_theft_rec(gpd.read_file('data/res_with_geo_loc_rec.csv'))
+            theft_recovery.create_flow_line_theft_rec(gpd.read_file('data/process/res_with_geo_loc_rec.csv'))
 
         if locals_parameters['classify_distance']:
             print('classify_distance')
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
         if locals_parameters['same_city']:
             print('same_city')
-            theft_recovery.same_city().to_file(theft_recovery.data_folder, layer='city_classification')
+            theft_recovery.recovery_city().to_file(theft_recovery.data_folder, layer='city_classification')
 
         if locals_parameters['california_counties']:
             print('california_counties')

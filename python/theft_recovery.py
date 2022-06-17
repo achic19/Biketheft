@@ -42,26 +42,24 @@ class MyGeoDataBase:
             return join_left_agg[join_left_agg.columns[0]]
 
     def create_gis_file_of_pnts_theft(self, df: GeoDataFrame, layer: str, is_line: bool = False,
-                                      more_cols: list = None):
+                                      more_cols: list = None, cor_name: list = None):
         """
         Convert the csv file (@df) to a gis file containing pertinent information and geometry
         :return:
         """
         if is_line:
             # to create gis file of stolen and recovery places
-            print('number of places before removing are {}'.format(len(df)))
-            df = df[df['stolen_bikes_place'] != df['recover_bikes_place']]
-            print('number of places after removing are {}'.format(len(df)))
             df.geometry = df.apply(
                 lambda x: LineString([(float(x['lat']), float(x['lon'])), (float(x['lat_rec']), float(x['lon_rec']))]),
                 axis=1)
+
         else:
-            df.geometry = df.apply(lambda x: Point(float(x['lat']), float(x['lon'])), axis=1)
+            df.geometry = df.apply(lambda x: Point(float(x[cor_name[0]]), float(x[cor_name[1]])), axis=1)
 
         df.crs = CRS
         df = df.to_crs(PRO_CRS)
         if is_line:
-            df['length'] = df.length
+            df[more_cols[3]] = df.length * 10 ** -3
         cols_to_work_with = ['index', 'score', 'geometry']
         if more_cols is not None:
             cols_to_work_with.extend(more_cols)
@@ -77,12 +75,14 @@ class BikeTheft(MyGeoDataBase):
         self.res_path = 'res'
 
         # # public members
-        self.location_name = 'stolen_bikes_place'  # name of the column with the location of the stolen bikes
+        self.location_name = ['stolen_bikes_place',
+                              'recover_bikes_place']  # name of the column with the location of the stolen bikes
 
         # # private members
         self.__flow_map_path = 'flow_map'
         self.__theft_rec_same_path = 'theft_rec_same'
         self.__theft_rec_diff_path = 'theft_rec_diff'
+        self.__rec_path = 'theft_rec'
 
     def create_flow_line_theft_rec(self, df: GeoDataFrame):
         """
@@ -90,35 +90,90 @@ class BikeTheft(MyGeoDataBase):
         :param df:
         :return:
         """
-        print(SIGN + 'rec different place')
-        self.create_gis_file_of_pnts_theft(df[df['stolen_bikes_place'] != df['recover_bikes_place']],
-                                           self.__flow_map_path, is_line=True,
-                                           more_cols=[self.location_name, 'recover_bikes_place', 'score_rec', 'length'])
-        print(SIGN + 'rec same place')
-        self.create_gis_file_of_pnts_theft(df[df['stolen_bikes_place'] == df['recover_bikes_place']],
-                                           self.__theft_rec_same_path, more_cols=[self.location_name])
 
-        print(SIGN + 'rec different place points')
-        self.create_gis_file_of_pnts_theft(df[df['stolen_bikes_place'] != df['recover_bikes_place']],
-                                           self.__theft_rec_diff_path, more_cols=[self.location_name])
+        def information_scale(row):
+            # This function marks a different scale of spatial unit
+            theft_location = row['stolen_bikes_place'].split(',')[0]
+            recover_location = row['recover_bikes_place'].split(',')[0]
+            if theft_location != '' and recover_location != '':
+                return 'city to city'
+            if theft_location == recover_location == '':
+                return 'state to state'
+            if theft_location == '':
+                return 'state to city'
+            else:
+                return 'city to state'
+
+        cor_name = ['lat', 'lon']
+
+        # For each row, calculate the level of detail for theft and recovery locations
+        df['detail_scale'] = df.apply(information_scale, axis=1)
+        # Create a flow gis file
+        print(SIGN + 'flow_map')
+        print('number of places before removing are {}'.format(len(df)))
+        recovered = df[df['stolen_bikes_place'] != df['recover_bikes_place']]
+        print('number of places after removing are {}'.format(len(df)))
+        self.create_gis_file_of_pnts_theft(recovered, self.__flow_map_path, is_line=True,
+                                           more_cols=self.location_name + ['score_rec', 'length', 'detail_scale'])
+
+        # gis file of location when theft and recovery in same city
+        print(SIGN + 'rec same city')
+        same_city = df[(df['stolen_bikes_place'] == df['recover_bikes_place']) & (df['detail_scale'] == 'city to city')]
+        self.create_gis_file_of_pnts_theft(same_city, self.__theft_rec_same_path, more_cols=self.location_name,
+                                           cor_name=cor_name)
+
+        # gis file of theft location when theft and recovery in different city
+        print(SIGN + 'theft different cities')
+        theft_city = recovered[
+            (recovered['detail_scale'] == 'city to city') | (recovered['detail_scale'] == 'city to state')]
+        self.create_gis_file_of_pnts_theft(theft_city, self.__theft_rec_diff_path, more_cols=self.location_name,
+                                           cor_name=cor_name)
+        # gis file of recovery cities when theft and recovery in different city
+        print(SIGN + 'recovery different cities')
+        rec_city = recovered[
+            (recovered['detail_scale'] == 'city to city') | (recovered['detail_scale'] == 'state to city')]
+        self.create_gis_file_of_pnts_theft(rec_city, self.__rec_path, more_cols=self.location_name,
+                                           cor_name=[name + '_rec' for name in cor_name])
 
     def classify_distance(self):
         """
         1-d classification based on Natural Breaks
         """
         df = gpd.read_file(self.data_folder, layer=self.__flow_map_path)
-        cal = (df['length'] * 10 ** -3).to_numpy()
+        cal = df['length'].to_numpy()
         return mc.NaturalBreaks(cal, k=5)
 
-    def same_city(self):
+    def recovery_city(self):
         """
         This method finds the number of bike that stolen and recovered in the same city
         """
-        df = gpd.read_file(self.data_folder, layer=self.__theft_rec_same_path)
-        new_df = df.drop_duplicates('stolen_bikes_place').set_index('stolen_bikes_place')
-        new_df['count'] = df.groupby('stolen_bikes_place').count()['geometry']
-        new_df.reset_index(inplace=True)
-        return new_df[~new_df['stolen_bikes_place'].apply(lambda x: x.startswith(','))]
+
+        def count_by_city(df, name):
+            new_df = df.drop_duplicates(col).set_index(col)
+            new_df[name] = df.groupby(col).count()['geometry']
+            new_df.reset_index(inplace=True)
+            return new_df[~new_df['stolen_bikes_place'].apply(lambda x: x.startswith(','))]
+
+        col = 'recover_bikes_place'
+
+        count_rec_same = 'count_rec_same'
+        count_rec_diff = 'count_rec_diff'
+        names_list = [count_rec_same, count_rec_diff]
+        tot = 'tot'
+
+        df_rec_same = count_by_city(df=gpd.read_file(self.data_folder, layer=self.__theft_rec_same_path),
+                                    name=count_rec_same)
+        df_rec_diff = count_by_city(gpd.read_file(self.data_folder, layer=self.__rec_path),
+                                    name=count_rec_diff)
+
+        count_rec_diff = 'count_rec_diff'
+        res = df_rec_same.merge(df_rec_diff, how='outer', on='recover_bikes_place')
+
+        res['geometry'] = res.apply(lambda x: x['geometry_x'] if x['geometry_x'] is not None else x['geometry_y'],
+                                    axis=1)
+        res[names_list] = res[names_list].fillna(0)
+        res[tot] = res[count_rec_same] + res[count_rec_diff]
+        return GeoDataFrame(data=res[names_list + [tot, col]], geometry=res['geometry'], crs=df_rec_diff.crs)
 
     def california_counties(self):
         """
