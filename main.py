@@ -5,9 +5,9 @@ from python.theft_recovery import *
 if __name__ == '__main__':
     parameters = {'BikeTheft': True, 'BikeIndex': False, 'FindPatterns': False}
     if parameters['BikeTheft']:
-        locals_parameters = {'create_gis_file_of_pnts_theft': False, 'create_flow_line_theft_rec': True,
-                             'classify_distance': False, 'same_city': True,
-                             'california_counties': False}
+        locals_parameters = {'create_gis_file_of_pnts_theft': False, 'create_flow_line_theft_rec': False,
+                             'classify_distance': False, 'same_city': False,
+                             'california_counties': True}
         print('BikeTheft')
         theft_recovery = BikeTheft(data_survey=r'data/process/res_with_geo_loc.csv',
                                    data_folder=r"general\Biketheft_esri\data.gpkg",

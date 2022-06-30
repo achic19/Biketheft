@@ -93,28 +93,32 @@ class BikeTheft(MyGeoDataBase):
 
         def information_scale(row):
             # This function marks a different scale of spatial unit
-            theft_location = row['stolen_bikes_place'].split(',')[0]
-            recover_location = row['recover_bikes_place'].split(',')[0]
+            tolen_str = row['stolen_bikes_place'].split(',')
+            rec_str = row['recover_bikes_place'].split(',')
+            theft_location = tolen_str[0]
+            recover_location = rec_str[0]
             if theft_location != '' and recover_location != '':
-                return 'city to city'
-            if theft_location == recover_location == '':
-                return 'state to state'
-            if theft_location == '':
-                return 'state to city'
+                res_1 = 'city to city'
+            elif theft_location == recover_location == '':
+                res_1 = 'state to state'
+            elif theft_location == '':
+                res_1 = 'state to city'
             else:
-                return 'city to state'
+                res_1 = 'city to state'
+            return ['same state' if tolen_str[1] == rec_str[1] else 'different state', res_1]
 
         cor_name = ['lat', 'lon']
 
         # For each row, calculate the level of detail for theft and recovery locations
-        df['detail_scale'] = df.apply(information_scale, axis=1)
+        df[['is_same_state', 'detail_scale']] = list(df.apply(lambda x: information_scale(x), axis=1))
         # Create a flow gis file
         print(SIGN + 'flow_map')
         print('number of places before removing are {}'.format(len(df)))
         recovered = df[df['stolen_bikes_place'] != df['recover_bikes_place']]
         print('number of places after removing are {}'.format(len(df)))
         self.create_gis_file_of_pnts_theft(recovered, self.__flow_map_path, is_line=True,
-                                           more_cols=self.location_name + ['score_rec', 'length', 'detail_scale'])
+                                           more_cols=self.location_name + ['score_rec', 'length', 'detail_scale',
+                                                                           'is_same_state'])
 
         # gis file of location when theft and recovery in same city
         print(SIGN + 'rec same city')
@@ -149,6 +153,7 @@ class BikeTheft(MyGeoDataBase):
         """
 
         def count_by_city(df, name):
+            # Create new df witch indexed by city
             new_df = df.drop_duplicates(col).set_index(col)
             new_df[name] = df.groupby(col).count()['geometry']
             new_df.reset_index(inplace=True)
@@ -315,6 +320,7 @@ class BikeIndex(MyGeoDataBase):
             iterate_over()
         [x[1][-1].to_file(self.data_folder, layer='records_by_' + x[0], driver="GPKG") for x in
          scales_data.items()]
+
 
 
 class FindPatterns:
