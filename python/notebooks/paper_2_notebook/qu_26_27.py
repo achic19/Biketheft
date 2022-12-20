@@ -65,7 +65,7 @@ class InterpretTime:
         """
         this function get string that include numeric and non-numeric values
         :param temp_str: the remaining part of the string
-        :param new_str: the new numeric value to build
+        :param new_str: the new numeric value_check to build
         :return:
         """
         is_digit = temp_str[0]
