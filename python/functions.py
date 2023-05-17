@@ -7,7 +7,7 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
 def count_per_city_question_var(my_data: DataFrame, old_name: str, new_name: str, is_state: str):
-    # For total work with all data anf for state work only with the state in @is_state
+    # For total work with all_vars data anf for state work only with the state in @is_state
     # Select only the data of question name (@old_name)
     if is_state == 'total':
         rel_demographic = DataFrame(my_data[old_name])

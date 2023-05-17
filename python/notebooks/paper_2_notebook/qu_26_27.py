@@ -16,7 +16,7 @@ not_found_list = ["not recovered", 'not recover', 'never', "wasn't recovered",
 class InterpretTime:
     def __init__(self, gb_data):
         """
-        The class is initialized for all the data and the methods update the new fields and tables
+        The class is initialized for all_vars the data and the methods update the new fields and tables
         :param gb_data:
         :return:
         """
@@ -221,7 +221,7 @@ class InterpretTime:
             # temp_list = is_point_decimal_number(temp_list)
             if not self.more_than_two_period_time(temp_list):
                 if not self.more_than_two_month_name(temp_list):
-                    # looking for all the values in the string and calculate the average
+                    # looking for all_vars the values in the string and calculate the average
                     list_cal = [int(is_day) for is_day in temp_list if is_day.isdigit()]
                     if len(list_cal) > 0:
                         self.update_dict(int(sum(list_cal) / len(list_cal)))
